@@ -2,6 +2,7 @@
 
 namespace Saade\Cep;
 
+use Saade\Cep\Commands\CepCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
