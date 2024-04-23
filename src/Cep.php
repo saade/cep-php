@@ -9,10 +9,10 @@ class Cep
     public static function get(string $cep): ?DataObjects\CepResponse
     {
         $promises = [
-            Providers\CorreiosProvider::get($cep),
-            Providers\CorreiosAltProvider::get($cep),
-            Providers\ViaCepProvider::get($cep),
-            Providers\BrasilApiProvider::get($cep),
+            Providers\CorreiosProvider::getAsync($cep),
+            Providers\CorreiosAltProvider::getAsync($cep),
+            Providers\ViaCepProvider::getAsync($cep),
+            Providers\BrasilApiProvider::getAsync($cep),
         ];
 
         return Utils::any($promises)

@@ -6,45 +6,37 @@ use Exception;
 use Saade\Cep\DataObjects\CepResponse;
 use Saade\Cep\Requests\CorreiosRequest;
 use Saloon\Http\Response;
-use SimpleXMLElement;
 
 class CorreiosProvider extends Provider
 {
     protected static string $request = CorreiosRequest::class;
-
-    protected static function processResponse(Response $response): mixed
-    {
-        $xml = simplexml_load_string(iconv('ISO-8859-1', 'UTF-8', $response->body()));
-
-        return $xml->xpath('//return')[0] ?? null;
-    }
-
-    /**
-     * @param  SimpleXMLElement  $data
+    
+    /**     
+     * @throws Exception
      */
-    protected static function handleErrors(Response $response, mixed $data): void
-    {
+    protected function handleErrors(Response $response): void
+    {        
         if (! $response->ok()) {
             throw new Exception('Could not connect to Correios provider.');
         }
 
-        if (! $data) {
+        if (! $response->xml()) {
             throw new Exception('Could not parse Correios provider response.');
         }
     }
-
-    /**
-     * @param  SimpleXMLElement  $data
-     */
-    protected static function mapResponse(Response $response, mixed $data): ?CepResponse
+    
+    protected function toDTO(Response $response): CepResponse
     {
+        $xml = simplexml_load_string(iconv('ISO-8859-1', 'UTF-8', $response->body()));
+        $data = $xml->xpath('//return')[0] ?? null;
+
         return new CepResponse(
-            cep: (string) data_get($data, 'cep'),
-            state: (string) data_get($data, 'uf'),
-            city: (string) data_get($data, 'cidade'),
-            neighborhood: (string) data_get($data, 'bairro'),
-            street: (string) data_get($data, 'end'),
             provider: 'correios',
+            cep: (string) $data['cep'] ?? null,
+            street: (string) $data['end'] ?? null,
+            neighborhood: (string) $data['bairro'] ?? null,
+            city: (string) $data['cidade'] ?? null,
+            state: (string) $data['uf'] ?? null,
         );
     }
 }

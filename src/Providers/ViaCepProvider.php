@@ -14,29 +14,26 @@ class ViaCepProvider extends Provider
     /**
      * @param  array  $data
      */
-    protected static function handleErrors(Response $response, mixed $data): void
+    protected function handleErrors(Response $response): void
     {
         if (! $response->ok()) {
             throw new Exception('Could not connect to ViaCep provider.');
         }
 
-        if (! $data || $response->json('erro', false)) {
+        if ((! $response->json()) || $response->json('erro')) {
             throw new Exception('Could not parse ViaCep provider response.');
         }
     }
 
-    /**
-     * @param  array  $data
-     */
-    protected static function mapResponse(Response $response, mixed $data): ?CepResponse
+    protected function toDTO(Response $response): CepResponse
     {
         return new CepResponse(
-            cep: str_replace('-', '', data_get($data, 'cep')),
-            state: data_get($data, 'uf'),
-            city: data_get($data, 'localidade'),
-            neighborhood: data_get($data, 'bairro'),
-            street: data_get($data, 'logradouro'),
             provider: 'viacep',
+            cep: str_replace('-', '', $response->json('cep')),
+            street: $response->json('logradouro'),
+            neighborhood: $response->json('bairro'),
+            city: $response->json('localidade'),
+            state: $response->json('uf'),
         );
     }
 }

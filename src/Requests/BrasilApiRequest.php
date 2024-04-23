@@ -6,7 +6,7 @@ use Saloon\Enums\Method;
 use Saloon\Http\SoloRequest;
 use Saloon\Traits\Plugins\AcceptsJson;
 
-class ViaCepRequest extends SoloRequest
+class BrasilApiRequest extends SoloRequest
 {
     use AcceptsJson;
 
@@ -18,7 +18,7 @@ class ViaCepRequest extends SoloRequest
 
     public function resolveEndpoint(): string
     {
-        return "https://viacep.com.br/ws/{$this->cep}/json/";
+        return "https://brasilapi.com.br/api/cep/v2/{$this->cep}";
     }
 
     protected function defaultHeaders(): array
@@ -31,7 +31,7 @@ class ViaCepRequest extends SoloRequest
     protected function defaultConfig(): array
     {
         return [
-            'timeout' => 30,
+            'timeout' => 10,
         ];
     }
 }

@@ -2,50 +2,60 @@
 
 namespace Saade\Cep\Providers;
 
-use GuzzleHttp\Client;
 use GuzzleHttp\Promise\PromiseInterface;
-use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\Psr7\Response;
 use Saade\Cep\DataObjects\CepResponse;
+use Saloon\Http\Response;
+use Saloon\Http\SoloRequest;
 
 use function Saade\Cep\Helpers\sanitizeCEP;
 
-/**
- * @method static Request getRequest(string $cep)
- */
-class Provider
-{
-    public static function get(string $cep): PromiseInterface
+abstract class Provider
+{   
+    /**
+     * @var class-string<SoloRequest>
+     */
+    protected static string $request;
+
+    public static function get(string $cep): ?CepResponse
+    {
+        return (new static)->send($cep);
+    }
+
+    public static function getAsync(string $cep): PromiseInterface
+    {
+        return (new static)->sendAsync($cep);
+    }
+
+    public function send(string $cep): ?CepResponse
     {
         $cep = sanitizeCEP($cep);
 
-        return (new Client(['timeout' => 30]))
-            ->sendAsync(request: static::getRequest($cep))
+        $response = (new static::$request($cep))->send();
+
+        $this->handleErrors($response);
+
+        return $this->toDTO($response);
+    }
+    
+    public function sendAsync(string $cep): PromiseInterface
+    {
+        $cep = sanitizeCEP($cep);
+
+        return (new static::$request($cep))
+            ->sendAsync()
             ->then(
                 function (Response $response): ?CepResponse {
-                    $data = static::processResponse($response);
+                    $this->handleErrors($response);
 
-                    static::handleErrors($response, $data);
-
-                    return static::mapResponse($response, $data);
+                    return $this->toDTO($response);
                 }
             );
-    }
-
-    protected static function processResponse(Response $response): mixed
-    {
-        return json_decode($response->getBody()->getContents(), true);
     }
 
     /**
      * @throws Exception
      */
-    protected static function handleErrors(Response $response, mixed $data): void
-    {
-    }
+    protected abstract function handleErrors(Response $response): void;
 
-    protected static function mapResponse(Response $response, mixed $data): ?CepResponse
-    {
-        return null;
-    }
+    protected abstract function toDTO(Response $response): CepResponse;
 }

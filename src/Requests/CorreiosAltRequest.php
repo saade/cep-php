@@ -6,10 +6,12 @@ use Saloon\Contracts\Body\HasBody;
 use Saloon\Enums\Method;
 use Saloon\Http\SoloRequest;
 use Saloon\Traits\Body\HasFormBody;
+use Saloon\Traits\Plugins\AcceptsJson;
 
 class CorreiosAltRequest extends SoloRequest implements HasBody
 {
     use HasFormBody;
+    use AcceptsJson;
 
     protected Method $method = Method::POST;
 
