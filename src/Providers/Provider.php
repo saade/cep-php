@@ -2,15 +2,16 @@
 
 namespace Saade\Cep\Providers;
 
+use GuzzleHttp\Client;
 use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Saade\Cep\DataObjects\CepResponse;
-use Saloon\Http\Response;
-use Saloon\Http\SoloRequest;
 
 use function Saade\Cep\Helpers\sanitizeCEP;
 
 /**
- * @property SoloRequest $request
+ * @method static Request getRequest(string $cep)
  */
 class Provider
 {
@@ -18,8 +19,8 @@ class Provider
     {
         $cep = sanitizeCEP($cep);
 
-        return static::$request::make($cep)
-            ->sendAsync()
+        return (new Client(['timeout' => 30]))
+            ->sendAsync(request: static::getRequest($cep))
             ->then(
                 function (Response $response): ?CepResponse {
                     $data = static::processResponse($response);
@@ -33,7 +34,7 @@ class Provider
 
     protected static function processResponse(Response $response): mixed
     {
-        return $response->json();
+        return json_decode($response->getBody()->getContents(), true);
     }
 
     /**

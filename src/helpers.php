@@ -4,8 +4,12 @@ namespace Saade\Cep\Helpers;
 
 function sanitizeCEP(string $cep, bool $formatted = false): string
 {
-    return str($cep)
-        ->replaceMatches('/[^0-9]/', '')
-        ->padLeft(8, '0')
-        ->when($formatted, fn (\Illuminate\Support\Stringable $cep) => $cep->replaceMatches('/^(\d{5})(\d{3})$/', '$1-$2'));
+    $cep = preg_replace('/[^0-9]/', '', $cep);
+    $cep = str_pad($cep, 8, '0', STR_PAD_LEFT);
+
+    if($formatted) {
+        $cep = preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $cep);
+    }
+
+    return $cep;
 }

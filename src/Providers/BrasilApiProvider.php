@@ -3,20 +3,30 @@
 namespace Saade\Cep\Providers;
 
 use Exception;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Saade\Cep\DataObjects\CepResponse;
-use Saade\Cep\Requests\BrasilApiRequest;
-use Saloon\Http\Response;
 
 class BrasilApiProvider extends Provider
 {
-    protected static string $request = BrasilApiRequest::class;
+    protected static function getRequest(string $cep): Request
+    {
+        return new Request(
+            method: 'GET',
+            uri: "https://brasilapi.com.br/api/cep/v2/{$cep}",
+            headers: [
+                'Accept' => 'application/json',
+                'Cache-Control' => 'no-cache',
+            ]
+        );
+    }
 
     /**
      * @param  array  $data
      */
     protected static function handleErrors(Response $response, mixed $data): void
     {
-        if (! $response->ok()) {
+        if ($response->getStatusCode() !== 200) {
             throw new Exception('Could not connect to Brasil Api provider.');
         }
 
