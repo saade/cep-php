@@ -10,7 +10,7 @@ use Saloon\Http\SoloRequest;
 use function Saade\Cep\Helpers\sanitizeCEP;
 
 abstract class Provider
-{   
+{
     /**
      * @var class-string<SoloRequest>
      */
@@ -36,7 +36,7 @@ abstract class Provider
 
         return $this->toDTO($response);
     }
-    
+
     public function sendAsync(string $cep): PromiseInterface
     {
         $cep = sanitizeCEP($cep);
@@ -55,7 +55,7 @@ abstract class Provider
     /**
      * @throws Exception
      */
-    protected abstract function handleErrors(Response $response): void;
+    abstract protected function handleErrors(Response $response): void;
 
-    protected abstract function toDTO(Response $response): CepResponse;
+    abstract protected function toDTO(Response $response): CepResponse;
 }

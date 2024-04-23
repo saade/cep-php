@@ -13,6 +13,7 @@ class BrasilApiProvider extends Provider
 
     /**
      * @param  array  $data
+     *
      * @throws Exception
      */
     protected function handleErrors(Response $response): void

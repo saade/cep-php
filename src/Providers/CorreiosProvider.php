@@ -10,12 +10,12 @@ use Saloon\Http\Response;
 class CorreiosProvider extends Provider
 {
     protected static string $request = CorreiosRequest::class;
-    
-    /**     
+
+    /**
      * @throws Exception
      */
     protected function handleErrors(Response $response): void
-    {        
+    {
         if (! $response->ok()) {
             throw new Exception('Could not connect to Correios provider.');
         }
@@ -24,7 +24,7 @@ class CorreiosProvider extends Provider
             throw new Exception('Could not parse Correios provider response.');
         }
     }
-    
+
     protected function toDTO(Response $response): CepResponse
     {
         $xml = simplexml_load_string(iconv('ISO-8859-1', 'UTF-8', $response->body()));
