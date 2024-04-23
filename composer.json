@@ -4,7 +4,11 @@
     "keywords": [
         "saade",
         "laravel",
-        "cep-php"
+        "cep-php",
+        "cep",
+        "correios",
+        "viacep",
+        "brasil api"
     ],
     "homepage": "https://github.com/saade/cep-php",
     "license": "MIT",
