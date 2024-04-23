@@ -10,8 +10,8 @@ use Saloon\Traits\Plugins\AcceptsJson;
 
 class CorreiosAltRequest extends SoloRequest implements HasBody
 {
-    use HasFormBody;
     use AcceptsJson;
+    use HasFormBody;
 
     protected Method $method = Method::POST;
 
