@@ -4,6 +4,7 @@
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/saade/cep-php/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/saade/cep-php/actions/workflows/run-tests.yml?query=branch%3Amain)
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/saade/cep-php/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/saade/cep-php/actions/workflows/fix-php-code-style-issues.yml?query=branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/saade/cep-php.svg?style=flat-square)](https://packagist.org/packages/saade/cep-php)
+[![Plumb score](https://plumbphp.dev/badges/saade/cep-php/composite.svg)](https://plumbphp.dev/saade/cep-php)
 
 ## Installation
 
