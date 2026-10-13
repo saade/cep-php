@@ -12,7 +12,7 @@ class ViaCepProvider extends Provider
     protected static string $request = ViaCepRequest::class;
 
     /**
-     * @param  array  $data
+     * @throws Exception
      */
     protected function handleErrors(Response $response): void
     {
@@ -20,7 +20,7 @@ class ViaCepProvider extends Provider
             throw new Exception('Could not connect to ViaCep provider.');
         }
 
-        if ((! $response->json()) || $response->json('erro')) {
+        if ($response->json('erro') || ! $response->json('cep')) {
             throw new Exception('Could not parse ViaCep provider response.');
         }
     }

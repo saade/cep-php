@@ -40,6 +40,7 @@ class CorreiosRequest extends SoloRequest implements HasBody
     protected function defaultHeaders(): array
     {
         return [
+            'Content-Type' => 'text/xml;charset=UTF-8',
             'Cache-Control' => 'no-cache',
         ];
     }
@@ -47,7 +48,7 @@ class CorreiosRequest extends SoloRequest implements HasBody
     protected function defaultConfig(): array
     {
         return [
-            'timeout' => 30,
+            'timeout' => 5,
         ];
     }
 }

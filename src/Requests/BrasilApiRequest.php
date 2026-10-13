@@ -18,20 +18,13 @@ class BrasilApiRequest extends SoloRequest
 
     public function resolveEndpoint(): string
     {
-        return "https://brasilapi.com.br/api/cep/v2/{$this->cep}";
-    }
-
-    protected function defaultHeaders(): array
-    {
-        return [
-            'Cache-Control' => 'no-cache',
-        ];
+        return "https://brasilapi.com.br/api/cep/v1/{$this->cep}";
     }
 
     protected function defaultConfig(): array
     {
         return [
-            'timeout' => 10,
+            'timeout' => 5,
         ];
     }
 }

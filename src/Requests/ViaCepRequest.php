@@ -21,17 +21,10 @@ class ViaCepRequest extends SoloRequest
         return "https://viacep.com.br/ws/{$this->cep}/json/";
     }
 
-    protected function defaultHeaders(): array
-    {
-        return [
-            'Cache-Control' => 'no-cache',
-        ];
-    }
-
     protected function defaultConfig(): array
     {
         return [
-            'timeout' => 30,
+            'timeout' => 5,
         ];
     }
 }

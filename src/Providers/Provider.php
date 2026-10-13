@@ -4,6 +4,7 @@ namespace Saade\Cep\Providers;
 
 use GuzzleHttp\Promise\PromiseInterface;
 use Saade\Cep\DataObjects\CepResponse;
+use Saloon\Http\Connector;
 use Saloon\Http\Response;
 use Saloon\Http\SoloRequest;
 
@@ -21,9 +22,9 @@ abstract class Provider
         return (new static)->send($cep);
     }
 
-    public static function getAsync(string $cep): PromiseInterface
+    public static function getAsync(string $cep, ?Connector $connector = null): PromiseInterface
     {
-        return (new static)->sendAsync($cep);
+        return (new static)->sendAsync($cep, $connector);
     }
 
     public function send(string $cep): ?CepResponse
@@ -37,11 +38,15 @@ abstract class Provider
         return $this->toDTO($response);
     }
 
-    public function sendAsync(string $cep): PromiseInterface
+    public function sendAsync(string $cep, ?Connector $connector = null): PromiseInterface
     {
-        $cep = sanitizeCEP($cep);
+        $request = new static::$request(sanitizeCEP($cep));
 
-        return (new static::$request($cep))
+        if ($connector) {
+            $request->setConnector($connector);
+        }
+
+        return $request
             ->sendAsync()
             ->then(
                 function (Response $response): ?CepResponse {

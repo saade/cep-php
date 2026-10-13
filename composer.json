@@ -21,7 +21,7 @@
     ],
     "require": {
         "php": "^8.1",
-        "saloonphp/saloon": "^3.0",
+        "saloonphp/saloon": "^3.0|^4.0",
         "spatie/laravel-package-tools": "^1.14.0"
     },
     "autoload": {
@@ -32,8 +32,15 @@
             "Saade\\Cep\\": "src/"
         }
     },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "test:live": "vendor/bin/pest --testsuite=Live"
+    },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
     },
     "extra": {
         "laravel": {
@@ -43,5 +50,9 @@
         }
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "require-dev": {
+        "orchestra/testbench": "^11.3",
+        "pestphp/pest": "^5.3"
+    }
 }

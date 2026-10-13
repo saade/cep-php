@@ -23,7 +23,7 @@ class CorreiosAltRequest extends SoloRequest implements HasBody
     {
         return [
             'endereco' => $this->cep,
-            'tipoCEP' => 'LOG',
+            'tipoCEP' => 'ALL',
         ];
     }
 
@@ -35,16 +35,15 @@ class CorreiosAltRequest extends SoloRequest implements HasBody
     protected function defaultHeaders(): array
     {
         return [
-            'Origin' => 'https://buscacepinter.correios.com.br',
             'Referer' => 'https://buscacepinter.correios.com.br/app/endereco/index.php',
-            'Cache-Control' => 'no-cache',
+            'Referrer-Policy' => 'strict-origin-when-cross-origin',
         ];
     }
 
     protected function defaultConfig(): array
     {
         return [
-            'timeout' => 30,
+            'timeout' => 5,
         ];
     }
 }

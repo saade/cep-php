@@ -12,24 +12,19 @@ class CorreiosAltProvider extends Provider
     protected static string $request = CorreiosAltRequest::class;
 
     /**
-     * @param  array  $data
-     *
      * @throws Exception
      */
     protected function handleErrors(Response $response): void
     {
         if (! $response->ok()) {
-            throw new Exception('Could not connect to Correios provider.');
+            throw new Exception('Could not connect to Correios-alt provider.');
         }
 
-        if ($response->json('erro')) {
+        if ($response->json('erro') || $response->json('total') === 0 || ! $response->json('dados.0.cep')) {
             throw new Exception('Could not parse Correios-alt provider response.');
         }
     }
 
-    /**
-     * @param  array  $data
-     */
     protected function toDTO(Response $response): CepResponse
     {
         return new CepResponse(

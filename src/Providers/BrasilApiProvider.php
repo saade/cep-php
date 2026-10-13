@@ -12,8 +12,6 @@ class BrasilApiProvider extends Provider
     protected static string $request = BrasilApiRequest::class;
 
     /**
-     * @param  array  $data
-     *
      * @throws Exception
      */
     protected function handleErrors(Response $response): void
@@ -22,14 +20,11 @@ class BrasilApiProvider extends Provider
             throw new Exception('Could not connect to Brasil Api provider.');
         }
 
-        if (! $response->json()) {
+        if (! $response->json('cep')) {
             throw new Exception('Could not parse Brasil Api provider response.');
         }
     }
 
-    /**
-     * @param  array  $data
-     */
     protected function toDTO(Response $response): CepResponse
     {
         return new CepResponse(
