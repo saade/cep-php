@@ -12,9 +12,7 @@ class BrasilApiRequest extends SoloRequest
 
     protected Method $method = Method::GET;
 
-    public function __construct(protected string $cep)
-    {
-    }
+    public function __construct(protected string $cep) {}
 
     public function resolveEndpoint(): string
     {

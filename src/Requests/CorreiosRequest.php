@@ -13,9 +13,7 @@ class CorreiosRequest extends SoloRequest implements HasBody
 
     protected Method $method = Method::POST;
 
-    public function __construct(protected string $cep)
-    {
-    }
+    public function __construct(protected string $cep) {}
 
     protected function defaultBody(): string
     {

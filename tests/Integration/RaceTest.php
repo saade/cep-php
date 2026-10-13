@@ -23,9 +23,7 @@ abstract class LocalRequest extends SoloRequest
 
     protected int $status = 200;
 
-    public function __construct(protected string $cep)
-    {
-    }
+    public function __construct(protected string $cep) {}
 
     public function resolveEndpoint(): string
     {

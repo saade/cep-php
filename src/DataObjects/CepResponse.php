@@ -11,8 +11,7 @@ class CepResponse
         public ?string $neighborhood,
         public ?string $city,
         public ?string $state,
-    ) {
-    }
+    ) {}
 
     public function toArray(): array
     {
