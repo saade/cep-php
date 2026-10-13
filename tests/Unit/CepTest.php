@@ -1,72 +1,64 @@
 <?php
 
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Saade\Cep\Cep;
 use Saade\Cep\DataObjects\CepResponse;
 use Saade\Cep\Providers\BrasilApiProvider;
 use Saade\Cep\Providers\ViaCepProvider;
-use Saade\Cep\Requests\BrasilApiRequest;
-use Saade\Cep\Requests\CorreiosAltRequest;
-use Saade\Cep\Requests\CorreiosRequest;
-use Saade\Cep\Requests\OpenCepRequest;
-use Saade\Cep\Requests\ViaCepRequest;
-use Saade\Cep\Requests\WideNetRequest;
-use Saloon\Exceptions\Request\FatalRequestException;
-use Saloon\Http\Faking\MockClient;
-use Saloon\Http\Faking\MockResponse;
-use Saloon\Http\PendingRequest;
-use Saloon\Http\Request;
 
-const FALLBACK_REQUESTS = [
-    CorreiosRequest::class,
-    ViaCepRequest::class,
-    WideNetRequest::class,
-    CorreiosAltRequest::class,
-    BrasilApiRequest::class,
+const OPEN_CEP_HOST = 'opencep.com';
+
+const FALLBACK_HOSTS = [
+    'apps.correios.com.br',
+    'viacep.com.br',
+    'cdn.apicep.com',
+    'buscacepinter.correios.com.br',
+    'brasilapi.com.br',
 ];
 
-function found(string $request): MockResponse
+function found(string $host): Response
 {
-    return MockResponse::make(stub(match ($request) {
-        OpenCepRequest::class => 'opencep/found.json',
-        CorreiosRequest::class => 'correios/found.xml',
-        ViaCepRequest::class => 'viacep/found.json',
-        WideNetRequest::class => 'widenet/found.json',
-        CorreiosAltRequest::class => 'correios-alt/found.json',
-        BrasilApiRequest::class => 'brasil-api/found.json',
+    return reply(stub(match ($host) {
+        'opencep.com' => 'opencep/found.json',
+        'apps.correios.com.br' => 'correios/found.xml',
+        'viacep.com.br' => 'viacep/found.json',
+        'cdn.apicep.com' => 'widenet/found.json',
+        'buscacepinter.correios.com.br' => 'correios-alt/found.json',
+        'brasilapi.com.br' => 'brasil-api/found.json',
     }));
 }
 
-function unreachable(): MockResponse
+function unreachable(string $host): ConnectException
 {
-    return MockResponse::make()->throw(
-        fn (PendingRequest $pendingRequest) => new FatalRequestException(new Exception('Connection timed out'), $pendingRequest)
-    );
+    return new ConnectException('Connection timed out', new Request('GET', "https://{$host}"));
 }
 
-function mockProviders(array $found = [], array $unreachable = []): MockClient
+function mockProviders(array $found = [], array $unreachable = []): FakeProviders
 {
     $responses = [
-        OpenCepRequest::class => MockResponse::make(stub('opencep/not-found.json'), 404),
-        CorreiosRequest::class => MockResponse::make('', 403),
-        ViaCepRequest::class => MockResponse::make(stub('viacep/not-found.json')),
-        WideNetRequest::class => MockResponse::make(stub('widenet/not-found.json')),
-        CorreiosAltRequest::class => MockResponse::make(stub('correios-alt/captcha.json')),
-        BrasilApiRequest::class => MockResponse::make(stub('brasil-api/not-found.json'), 404),
+        'opencep.com' => reply(stub('opencep/not-found.json'), 404),
+        'apps.correios.com.br' => reply('', 403),
+        'viacep.com.br' => reply(stub('viacep/not-found.json')),
+        'cdn.apicep.com' => reply(stub('widenet/not-found.json')),
+        'buscacepinter.correios.com.br' => reply(stub('correios-alt/captcha.json')),
+        'brasilapi.com.br' => reply(stub('brasil-api/not-found.json'), 404),
     ];
 
-    foreach ($found as $request) {
-        $responses[$request] = found($request);
+    foreach ($found as $host) {
+        $responses[$host] = found($host);
     }
 
-    foreach ($unreachable as $request) {
-        $responses[$request] = unreachable();
+    foreach ($unreachable as $host) {
+        $responses[$host] = unreachable($host);
     }
 
-    return MockClient::global($responses);
+    return fakeProviders($responses);
 }
 
 it('returns the OpenCEP address without querying the other providers', function () {
-    $mockClient = mockProviders(found: [OpenCepRequest::class, ...FALLBACK_REQUESTS]);
+    $fake = mockProviders(found: [OPEN_CEP_HOST, ...FALLBACK_HOSTS]);
 
     expect(Cep::get('28895-190'))->toArray()->toBe([
         'provider' => 'open-cep',
@@ -77,12 +69,11 @@ it('returns the OpenCEP address without querying the other providers', function 
         'state' => 'RJ',
     ]);
 
-    $mockClient->assertSentCount(1);
-    $mockClient->assertSent(OpenCepRequest::class);
+    expect($fake->hosts())->toBe([OPEN_CEP_HOST]);
 });
 
-it('falls back to the other providers when OpenCEP cannot resolve the cep', function (string $request, string $provider, bool $openCepUnreachable) {
-    $mockClient = mockProviders(found: [$request], unreachable: $openCepUnreachable ? [OpenCepRequest::class] : []);
+it('falls back to the other providers when OpenCEP cannot resolve the cep', function (string $host, string $provider, bool $openCepUnreachable) {
+    $fake = mockProviders(found: [$host], unreachable: $openCepUnreachable ? [OPEN_CEP_HOST] : []);
 
     expect(Cep::get('28895-190'))
         ->toBeInstanceOf(CepResponse::class)
@@ -93,22 +84,20 @@ it('falls back to the other providers when OpenCEP cannot resolve the cep', func
         ->city->not->toBeEmpty()
         ->state->not->toBeEmpty();
 
-    foreach (FALLBACK_REQUESTS as $fallback) {
-        $mockClient->assertSent($fallback);
-    }
+    expect($fake->hosts())->toBe([OPEN_CEP_HOST, ...FALLBACK_HOSTS]);
 })->with([
-    'correios' => [CorreiosRequest::class, 'correios'],
-    'viacep' => [ViaCepRequest::class, 'viacep'],
-    'widenet' => [WideNetRequest::class, 'widenet'],
-    'correios-alt' => [CorreiosAltRequest::class, 'correios-alt'],
-    'brasil-api' => [BrasilApiRequest::class, 'brasil-api'],
+    'correios' => ['apps.correios.com.br', 'correios'],
+    'viacep' => ['viacep.com.br', 'viacep'],
+    'widenet' => ['cdn.apicep.com', 'widenet'],
+    'correios-alt' => ['buscacepinter.correios.com.br', 'correios-alt'],
+    'brasil-api' => ['brasilapi.com.br', 'brasil-api'],
 ])->with([
     'OpenCEP not found' => false,
     'OpenCEP unreachable' => true,
 ]);
 
 it('returns a complete address when several fallback providers resolve the cep', function () {
-    mockProviders(found: FALLBACK_REQUESTS);
+    mockProviders(found: FALLBACK_HOSTS);
 
     expect(Cep::get('28895-190'))
         ->toBeInstanceOf(CepResponse::class)
@@ -125,41 +114,35 @@ it('returns null when no provider resolves the cep', function () {
 });
 
 it('returns null when every provider is unreachable', function () {
-    mockProviders(unreachable: [OpenCepRequest::class, ...FALLBACK_REQUESTS]);
+    mockProviders(unreachable: [OPEN_CEP_HOST, ...FALLBACK_HOSTS]);
 
     expect(Cep::get('28895-190'))->toBeNull();
 });
 
 it('survives unreachable providers when another one resolves the cep', function () {
     mockProviders(
-        found: [BrasilApiRequest::class],
-        unreachable: [OpenCepRequest::class, CorreiosRequest::class, ViaCepRequest::class, WideNetRequest::class, CorreiosAltRequest::class],
+        found: ['brasilapi.com.br'],
+        unreachable: [OPEN_CEP_HOST, 'apps.correios.com.br', 'viacep.com.br', 'cdn.apicep.com', 'buscacepinter.correios.com.br'],
     );
 
     expect(Cep::get('28895-190'))->provider->toBe('brasil-api');
 });
 
 it('returns null without querying any provider when the cep has more than 8 digits', function () {
-    $mockClient = mockProviders(found: [OpenCepRequest::class, ...FALLBACK_REQUESTS]);
+    $fake = mockProviders(found: [OPEN_CEP_HOST, ...FALLBACK_HOSTS]);
 
-    expect(Cep::get('28895-1900'))->toBeNull();
-
-    $mockClient->assertNothingSent();
+    expect(Cep::get('28895-1900'))->toBeNull()
+        ->and($fake->sent)->toBe([]);
 });
 
 it('sends the sanitized cep to the providers', function (string $cep, string $expected) {
-    $mockClient = mockProviders(found: [BrasilApiRequest::class]);
+    $fake = mockProviders(found: ['brasilapi.com.br']);
 
     Cep::get($cep);
 
-    $mockClient->assertSent(
-        fn (Request $request) => $request instanceof OpenCepRequest
-            && $request->resolveEndpoint() === "https://opencep.com/v1/{$expected}"
-    );
-
-    $mockClient->assertSent(
-        fn (Request $request) => $request instanceof BrasilApiRequest
-            && $request->resolveEndpoint() === "https://brasilapi.com.br/api/cep/v1/{$expected}"
+    expect($fake->urls())->toContain(
+        "https://opencep.com/v1/{$expected}",
+        "https://brasilapi.com.br/api/cep/v1/{$expected}",
     );
 })->with([
     'masked' => ['28895-190', '28895190'],
@@ -167,16 +150,14 @@ it('sends the sanitized cep to the providers', function (string $cep, string $ex
 ]);
 
 it('races only the given providers', function () {
-    $mockClient = mockProviders(found: [OpenCepRequest::class, ...FALLBACK_REQUESTS]);
+    $fake = mockProviders(found: [OPEN_CEP_HOST, ...FALLBACK_HOSTS]);
 
     expect(Cep::race('28895-190', [ViaCepProvider::class, BrasilApiProvider::class]))
         ->toBeInstanceOf(CepResponse::class)
         ->provider->toBeIn(['viacep', 'brasil-api'])
         ->cep->toBe('28895190');
 
-    $mockClient->assertSentCount(2);
-    $mockClient->assertSent(ViaCepRequest::class);
-    $mockClient->assertSent(BrasilApiRequest::class);
+    expect($fake->hosts())->toBe(['viacep.com.br', 'brasilapi.com.br']);
 });
 
 it('returns null from a race no provider wins', function () {

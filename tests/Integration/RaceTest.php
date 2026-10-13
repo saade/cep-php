@@ -1,13 +1,13 @@
 <?php
 
+use GuzzleHttp\Psr7\Request;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Saade\Cep\Cep;
 use Saade\Cep\DataObjects\CepResponse;
 use Saade\Cep\Providers\Provider;
-use Saloon\Enums\Method;
-use Saloon\Http\Response;
-use Saloon\Http\SoloRequest;
 
-abstract class LocalRequest extends SoloRequest
+abstract class LocalProvider extends Provider
 {
     public static string $baseUrl;
 
@@ -15,112 +15,82 @@ abstract class LocalRequest extends SoloRequest
 
     public static array $pipes;
 
-    protected Method $method = Method::GET;
-
     protected string $name;
 
-    protected float $responseDelay = 0;
+    protected float $delay = 0;
 
     protected int $status = 200;
 
-    public function __construct(protected string $cep) {}
-
-    public function resolveEndpoint(): string
+    protected function request(string $cep): RequestInterface
     {
-        return static::$baseUrl.'/?'.http_build_query([
+        return new Request('GET', self::$baseUrl.'/?'.http_build_query([
             'provider' => $this->name,
-            'delay' => $this->responseDelay,
+            'delay' => $this->delay,
             'status' => $this->status,
-        ]);
+        ]));
     }
-}
 
-class FastRequest extends LocalRequest
-{
-    protected string $name = 'fast';
-
-    protected float $responseDelay = 0.1;
-}
-
-class SlowRequest extends LocalRequest
-{
-    protected string $name = 'slow';
-
-    protected float $responseDelay = 3;
-}
-
-class LateRequest extends LocalRequest
-{
-    protected string $name = 'late';
-
-    protected float $responseDelay = 0.5;
-}
-
-class FailingRequest extends LocalRequest
-{
-    protected string $name = 'failing';
-
-    protected float $responseDelay = 0.5;
-
-    protected int $status = 500;
-}
-
-abstract class LocalProvider extends Provider
-{
-    protected function handleErrors(Response $response): void
+    protected function handleErrors(ResponseInterface $response): void
     {
-        if (! $response->ok()) {
+        if ($response->getStatusCode() !== 200) {
             throw new Exception('Could not connect to local provider.');
         }
     }
 
-    protected function toDTO(Response $response): CepResponse
+    protected function toDTO(ResponseInterface $response): CepResponse
     {
-        return new CepResponse($response->json('provider'), '01001000', null, null, null, null);
+        return new CepResponse($this->json($response)['provider'], '01001000', null, null, null, null);
     }
 }
 
 class FastProvider extends LocalProvider
 {
-    protected static string $request = FastRequest::class;
+    protected string $name = 'fast';
+
+    protected float $delay = 0.1;
 }
 
 class SlowProvider extends LocalProvider
 {
-    protected static string $request = SlowRequest::class;
+    protected string $name = 'slow';
+
+    protected float $delay = 3;
 }
 
 class LateProvider extends LocalProvider
 {
-    protected static string $request = LateRequest::class;
+    protected string $name = 'late';
+
+    protected float $delay = 0.5;
 }
 
 class FailingProvider extends LocalProvider
 {
-    protected static string $request = FailingRequest::class;
+    protected string $name = 'failing';
+
+    protected float $delay = 0.5;
+
+    protected int $status = 500;
 }
 
-class OtherFailingProvider extends LocalProvider
-{
-    protected static string $request = FailingRequest::class;
-}
+class OtherFailingProvider extends FailingProvider {}
 
 beforeAll(function () {
-    LocalRequest::$server = proc_open(
+    LocalProvider::$server = proc_open(
         [PHP_BINARY, __DIR__.'/../Fixtures/server.php'],
         [['pipe', 'r'], ['pipe', 'w'], ['file', '/dev/null', 'w']],
         $pipes,
     );
 
-    LocalRequest::$pipes = $pipes;
-    LocalRequest::$baseUrl = 'http://'.trim(fgets($pipes[1]));
+    LocalProvider::$pipes = $pipes;
+    LocalProvider::$baseUrl = 'http://'.trim(fgets($pipes[1]));
 });
 
 afterAll(function () {
-    array_map(fclose(...), LocalRequest::$pipes);
+    array_map(fclose(...), LocalProvider::$pipes);
 
-    proc_terminate(LocalRequest::$server);
-    proc_close(LocalRequest::$server);
+    proc_terminate(LocalProvider::$server);
+    proc_close(LocalProvider::$server);
 });
 
 it('returns the fastest provider without waiting for the slower ones', function () {

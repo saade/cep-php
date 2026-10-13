@@ -1,14 +1,11 @@
 <?php
 
+use GuzzleHttp\Psr7\Response;
 use Saade\Cep\DataObjects\CepResponse;
 use Saade\Cep\Providers\CorreiosProvider;
-use Saade\Cep\Requests\CorreiosRequest;
-use Saloon\Enums\Method;
-use Saloon\Http\Faking\MockClient;
-use Saloon\Http\Faking\MockResponse;
 
 it('maps a found address', function (string $body) {
-    MockClient::global([CorreiosRequest::class => MockResponse::make($body)]);
+    fakeProviders(['apps.correios.com.br' => reply($body)]);
 
     expect(CorreiosProvider::get('05010-000'))
         ->toBeInstanceOf(CepResponse::class)
@@ -26,35 +23,36 @@ it('maps a found address', function (string $body) {
 ]);
 
 it('posts the sanitized cep in a soap envelope', function () {
-    $mockClient = MockClient::global([CorreiosRequest::class => MockResponse::make(stub('correios/found.xml'))]);
+    $fake = fakeProviders(['apps.correios.com.br' => reply(stub('correios/found.xml'))]);
 
     CorreiosProvider::get('05010-000');
 
-    $pendingRequest = $mockClient->getLastPendingRequest();
+    [$request, $options] = $fake->sent[0];
 
-    expect($pendingRequest->getMethod())->toBe(Method::POST)
-        ->and($pendingRequest->getUrl())->toBe('https://apps.correios.com.br/SigepMasterJPA/AtendeClienteService/AtendeCliente')
-        ->and($pendingRequest->headers()->get('Content-Type'))->toBe('text/xml;charset=UTF-8')
-        ->and($pendingRequest->config()->get('timeout'))->toBe(5)
-        ->and((string) $pendingRequest->body())->toContain('<cli:consultaCEP>', '<cep>05010000</cep>')
-        ->and(simplexml_load_string((string) $pendingRequest->body()))->not->toBeFalse();
+    expect($request->getMethod())->toBe('POST')
+        ->and((string) $request->getUri())->toBe('https://apps.correios.com.br/SigepMasterJPA/AtendeClienteService/AtendeCliente')
+        ->and($request->getHeaderLine('Content-Type'))->toBe('text/xml;charset=UTF-8')
+        ->and($request->getHeaderLine('Cache-Control'))->toBe('no-cache')
+        ->and($options['timeout'])->toEqual(5)
+        ->and((string) $request->getBody())->toContain('<cli:consultaCEP>', '<cep>05010000</cep>')
+        ->and(simplexml_load_string((string) $request->getBody()))->not->toBeFalse();
 });
 
-it('fails when the cep cannot be resolved', function (MockResponse $response) {
-    MockClient::global([CorreiosRequest::class => $response]);
+it('fails when the cep cannot be resolved', function (Response $response) {
+    fakeProviders(['apps.correios.com.br' => $response]);
 
     expect(fn () => CorreiosProvider::get('00000-000'))->toThrow(Exception::class);
 })->with([
-    'soap fault' => fn () => MockResponse::make(stub('correios/not-found.xml'), 500),
-    'forbidden' => fn () => MockResponse::make('', 403),
-    'empty body' => fn () => MockResponse::make(''),
-    'malformed xml' => fn () => MockResponse::make('<nintendo><zelda></mario></zelda>'),
-    'envelope without an address' => fn () => MockResponse::make('<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body /></soap:Envelope>'),
-    'address without a cep' => fn () => MockResponse::make('<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><return><cep></cep></return></soap:Body></soap:Envelope>'),
+    'soap fault' => fn () => reply(stub('correios/not-found.xml'), 500),
+    'forbidden' => fn () => reply('', 403),
+    'empty body' => fn () => reply(''),
+    'malformed xml' => fn () => reply('<nintendo><zelda></mario></zelda>'),
+    'envelope without an address' => fn () => reply('<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body /></soap:Envelope>'),
+    'address without a cep' => fn () => reply('<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><return><cep></cep></return></soap:Body></soap:Envelope>'),
 ]);
 
 it('resolves asynchronously', function () {
-    MockClient::global([CorreiosRequest::class => MockResponse::make(stub('correios/found.xml'))]);
+    fakeProviders(['apps.correios.com.br' => reply(stub('correios/found.xml'))]);
 
     expect(CorreiosProvider::getAsync('05010-000')->wait())
         ->toBeInstanceOf(CepResponse::class)
@@ -63,7 +61,7 @@ it('resolves asynchronously', function () {
 });
 
 it('rejects asynchronously when the cep cannot be resolved', function () {
-    MockClient::global([CorreiosRequest::class => MockResponse::make(stub('correios/not-found.xml'), 500)]);
+    fakeProviders(['apps.correios.com.br' => reply(stub('correios/not-found.xml'), 500)]);
 
     expect(fn () => CorreiosProvider::getAsync('00000-000')->wait())->toThrow(Exception::class);
 });

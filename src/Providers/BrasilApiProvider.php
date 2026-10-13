@@ -3,37 +3,43 @@
 namespace Saade\Cep\Providers;
 
 use Exception;
+use GuzzleHttp\Psr7\Request;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Saade\Cep\DataObjects\CepResponse;
-use Saade\Cep\Requests\BrasilApiRequest;
-use Saloon\Http\Response;
 
 class BrasilApiProvider extends Provider
 {
-    protected static string $request = BrasilApiRequest::class;
+    protected function request(string $cep): RequestInterface
+    {
+        return new Request('GET', "https://brasilapi.com.br/api/cep/v1/{$cep}", ['Accept' => 'application/json']);
+    }
 
     /**
      * @throws Exception
      */
-    protected function handleErrors(Response $response): void
+    protected function handleErrors(ResponseInterface $response): void
     {
-        if (! $response->ok()) {
+        if ($response->getStatusCode() !== 200) {
             throw new Exception('Could not connect to Brasil Api provider.');
         }
 
-        if (! $response->json('cep')) {
+        if (empty($this->json($response)['cep'])) {
             throw new Exception('Could not parse Brasil Api provider response.');
         }
     }
 
-    protected function toDTO(Response $response): CepResponse
+    protected function toDTO(ResponseInterface $response): CepResponse
     {
+        $data = $this->json($response);
+
         return new CepResponse(
             provider: 'brasil-api',
-            cep: $response->json('cep'),
-            street: $response->json('street'),
-            neighborhood: $response->json('neighborhood'),
-            city: $response->json('city'),
-            state: $response->json('state'),
+            cep: $data['cep'],
+            street: $data['street'] ?? null,
+            neighborhood: $data['neighborhood'] ?? null,
+            city: $data['city'] ?? null,
+            state: $data['state'] ?? null,
         );
     }
 }

@@ -3,37 +3,45 @@
 namespace Saade\Cep\Providers;
 
 use Exception;
+use GuzzleHttp\Psr7\Request;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Saade\Cep\DataObjects\CepResponse;
-use Saade\Cep\Requests\ViaCepRequest;
-use Saloon\Http\Response;
 
 class ViaCepProvider extends Provider
 {
-    protected static string $request = ViaCepRequest::class;
+    protected function request(string $cep): RequestInterface
+    {
+        return new Request('GET', "https://viacep.com.br/ws/{$cep}/json/", ['Accept' => 'application/json']);
+    }
 
     /**
      * @throws Exception
      */
-    protected function handleErrors(Response $response): void
+    protected function handleErrors(ResponseInterface $response): void
     {
-        if (! $response->ok()) {
+        if ($response->getStatusCode() !== 200) {
             throw new Exception('Could not connect to ViaCep provider.');
         }
 
-        if ($response->json('erro') || ! $response->json('cep')) {
+        $data = $this->json($response);
+
+        if (! empty($data['erro']) || empty($data['cep'])) {
             throw new Exception('Could not parse ViaCep provider response.');
         }
     }
 
-    protected function toDTO(Response $response): CepResponse
+    protected function toDTO(ResponseInterface $response): CepResponse
     {
+        $data = $this->json($response);
+
         return new CepResponse(
             provider: 'viacep',
-            cep: str_replace('-', '', $response->json('cep')),
-            street: $response->json('logradouro'),
-            neighborhood: $response->json('bairro'),
-            city: $response->json('localidade'),
-            state: $response->json('uf'),
+            cep: str_replace('-', '', $data['cep']),
+            street: $data['logradouro'] ?? null,
+            neighborhood: $data['bairro'] ?? null,
+            city: $data['localidade'] ?? null,
+            state: $data['uf'] ?? null,
         );
     }
 }

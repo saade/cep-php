@@ -3,37 +3,55 @@
 namespace Saade\Cep\Providers;
 
 use Exception;
+use GuzzleHttp\Psr7\Request;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Saade\Cep\DataObjects\CepResponse;
-use Saade\Cep\Requests\CorreiosAltRequest;
-use Saloon\Http\Response;
 
 class CorreiosAltProvider extends Provider
 {
-    protected static string $request = CorreiosAltRequest::class;
+    protected function request(string $cep): RequestInterface
+    {
+        return new Request(
+            'POST',
+            'https://buscacepinter.correios.com.br/app/endereco/carrega-cep-endereco.php',
+            [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/x-www-form-urlencoded',
+                'Referer' => 'https://buscacepinter.correios.com.br/app/endereco/index.php',
+                'Referrer-Policy' => 'strict-origin-when-cross-origin',
+            ],
+            http_build_query(['endereco' => $cep, 'tipoCEP' => 'ALL']),
+        );
+    }
 
     /**
      * @throws Exception
      */
-    protected function handleErrors(Response $response): void
+    protected function handleErrors(ResponseInterface $response): void
     {
-        if (! $response->ok()) {
+        if ($response->getStatusCode() !== 200) {
             throw new Exception('Could not connect to Correios-alt provider.');
         }
 
-        if ($response->json('erro') || $response->json('total') === 0 || ! $response->json('dados.0.cep')) {
+        $data = $this->json($response);
+
+        if (! empty($data['erro']) || ($data['total'] ?? null) === 0 || empty($data['dados'][0]['cep'])) {
             throw new Exception('Could not parse Correios-alt provider response.');
         }
     }
 
-    protected function toDTO(Response $response): CepResponse
+    protected function toDTO(ResponseInterface $response): CepResponse
     {
+        $address = $this->json($response)['dados'][0];
+
         return new CepResponse(
             provider: 'correios-alt',
-            cep: $response->json('dados.0.cep'),
-            street: $response->json('dados.0.logradouroDNEC'),
-            neighborhood: $response->json('dados.0.bairro'),
-            city: $response->json('dados.0.localidade'),
-            state: $response->json('dados.0.uf'),
+            cep: $address['cep'],
+            street: $address['logradouroDNEC'] ?? null,
+            neighborhood: $address['bairro'] ?? null,
+            city: $address['localidade'] ?? null,
+            state: $address['uf'] ?? null,
         );
     }
 }

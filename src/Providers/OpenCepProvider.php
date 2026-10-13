@@ -3,37 +3,45 @@
 namespace Saade\Cep\Providers;
 
 use Exception;
+use GuzzleHttp\Psr7\Request;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Saade\Cep\DataObjects\CepResponse;
-use Saade\Cep\Requests\OpenCepRequest;
-use Saloon\Http\Response;
 
 class OpenCepProvider extends Provider
 {
-    protected static string $request = OpenCepRequest::class;
+    protected float $timeout = 3;
+
+    protected function request(string $cep): RequestInterface
+    {
+        return new Request('GET', "https://opencep.com/v1/{$cep}", ['Accept' => 'application/json']);
+    }
 
     /**
      * @throws Exception
      */
-    protected function handleErrors(Response $response): void
+    protected function handleErrors(ResponseInterface $response): void
     {
-        if (! $response->ok()) {
+        if ($response->getStatusCode() !== 200) {
             throw new Exception('Could not connect to OpenCEP provider.');
         }
 
-        if (! $response->json('cep')) {
+        if (empty($this->json($response)['cep'])) {
             throw new Exception('Could not parse OpenCEP provider response.');
         }
     }
 
-    protected function toDTO(Response $response): CepResponse
+    protected function toDTO(ResponseInterface $response): CepResponse
     {
+        $data = $this->json($response);
+
         return new CepResponse(
             provider: 'open-cep',
-            cep: preg_replace('/\D/', '', $response->json('cep')),
-            street: $response->json('logradouro'),
-            neighborhood: $response->json('bairro'),
-            city: $response->json('localidade'),
-            state: $response->json('uf'),
+            cep: preg_replace('/\D/', '', $data['cep']),
+            street: $data['logradouro'] ?? null,
+            neighborhood: $data['bairro'] ?? null,
+            city: $data['localidade'] ?? null,
+            state: $data['uf'] ?? null,
         );
     }
 }

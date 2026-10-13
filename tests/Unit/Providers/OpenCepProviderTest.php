@@ -1,14 +1,11 @@
 <?php
 
+use GuzzleHttp\Psr7\Response;
 use Saade\Cep\DataObjects\CepResponse;
 use Saade\Cep\Providers\OpenCepProvider;
-use Saade\Cep\Requests\OpenCepRequest;
-use Saloon\Enums\Method;
-use Saloon\Http\Faking\MockClient;
-use Saloon\Http\Faking\MockResponse;
 
 it('maps a found address', function () {
-    MockClient::global([OpenCepRequest::class => MockResponse::make(stub('opencep/found.json'))]);
+    fakeProviders(['opencep.com' => reply(stub('opencep/found.json'))]);
 
     expect(OpenCepProvider::get('28895-190'))
         ->toBeInstanceOf(CepResponse::class)
@@ -23,32 +20,32 @@ it('maps a found address', function () {
 });
 
 it('requests the sanitized cep', function () {
-    $mockClient = MockClient::global([OpenCepRequest::class => MockResponse::make(stub('opencep/found.json'))]);
+    $fake = fakeProviders(['opencep.com' => reply(stub('opencep/found.json'))]);
 
     OpenCepProvider::get('28895-190');
 
-    $pendingRequest = $mockClient->getLastPendingRequest();
+    [$request, $options] = $fake->sent[0];
 
-    expect($pendingRequest->getMethod())->toBe(Method::GET)
-        ->and($pendingRequest->getUrl())->toBe('https://opencep.com/v1/28895190')
-        ->and($pendingRequest->headers()->get('Accept'))->toBe('application/json')
-        ->and($pendingRequest->config()->get('timeout'))->toBe(3);
+    expect($request->getMethod())->toBe('GET')
+        ->and((string) $request->getUri())->toBe('https://opencep.com/v1/28895190')
+        ->and($request->getHeaderLine('Accept'))->toBe('application/json')
+        ->and($options['timeout'])->toEqual(3);
 });
 
-it('fails when the cep cannot be resolved', function (MockResponse $response) {
-    MockClient::global([OpenCepRequest::class => $response]);
+it('fails when the cep cannot be resolved', function (Response $response) {
+    fakeProviders(['opencep.com' => $response]);
 
     expect(fn () => OpenCepProvider::get('00000-000'))->toThrow(Exception::class);
 })->with([
-    'not found' => fn () => MockResponse::make(stub('opencep/not-found.json'), 404),
-    'server error' => fn () => MockResponse::make('', 500),
-    'empty body' => fn () => MockResponse::make(''),
-    'html body' => fn () => MockResponse::make('<html></html>'),
-    'json without an address' => fn () => MockResponse::make(['error' => true]),
+    'not found' => fn () => reply(stub('opencep/not-found.json'), 404),
+    'server error' => fn () => reply('', 500),
+    'empty body' => fn () => reply(''),
+    'html body' => fn () => reply('<html></html>'),
+    'json without an address' => fn () => reply(['error' => true]),
 ]);
 
 it('resolves asynchronously', function () {
-    MockClient::global([OpenCepRequest::class => MockResponse::make(stub('opencep/found.json'))]);
+    fakeProviders(['opencep.com' => reply(stub('opencep/found.json'))]);
 
     expect(OpenCepProvider::getAsync('28895-190')->wait())
         ->toBeInstanceOf(CepResponse::class)
@@ -57,7 +54,7 @@ it('resolves asynchronously', function () {
 });
 
 it('rejects asynchronously when the cep cannot be resolved', function () {
-    MockClient::global([OpenCepRequest::class => MockResponse::make(stub('opencep/not-found.json'), 404)]);
+    fakeProviders(['opencep.com' => reply(stub('opencep/not-found.json'), 404)]);
 
     expect(fn () => OpenCepProvider::getAsync('00000-000')->wait())->toThrow(Exception::class);
 });

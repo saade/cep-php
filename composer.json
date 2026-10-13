@@ -21,7 +21,7 @@
     ],
     "require": {
         "php": "^8.1",
-        "saloonphp/saloon": "^3.0|^4.0",
+        "guzzlehttp/guzzle": "^7.15.2|^8.0.1",
         "spatie/laravel-package-tools": "^1.14.0"
     },
     "autoload": {

@@ -2,8 +2,8 @@
 
 namespace Saade\Cep;
 
+use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
-use Saade\Cep\Connectors\RaceConnector;
 use Saade\Cep\DataObjects\CepResponse;
 use Throwable;
 
@@ -37,22 +37,26 @@ class Cep
      */
     public static function race(string $cep, array $providers): ?CepResponse
     {
-        $connector = new RaceConnector;
         $winner = null;
-        $promises = [];
+        $lookups = [];
+        $settled = [];
 
         foreach ($providers as $provider) {
-            $promises[] = $provider::getAsync($cep, $connector)->then(
-                function (CepResponse $response) use (&$winner, $connector) {
+            $lookups[] = $provider::getAsync($cep);
+        }
+
+        foreach ($lookups as $lookup) {
+            $settled[] = $lookup->then(
+                function (CepResponse $response) use (&$winner, $lookups) {
                     $winner ??= $response;
 
-                    $connector->cancelTransfers();
+                    array_map(fn (PromiseInterface $lookup) => $lookup->cancel(), $lookups);
                 },
                 fn () => null,
             );
         }
 
-        Utils::all($promises)->wait();
+        Utils::all($settled)->wait();
 
         return $winner;
     }
